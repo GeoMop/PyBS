@@ -6,6 +6,18 @@ import isec_curve_surf as ICS
 import numpy.linalg as la
 
 
+class Patch:
+    # Auxiliary object to collect Intersection points on one patch.
+    def __init__(self, own, other):
+        own_surf_point, other_surf_point = own[0]
+        self.own_surf = own_surf_point.surf
+        self.other_surf = other_surf_point.surf
+        self.main_curve_points = own
+        # Intersection points on main curves of the surface of the patch
+        # Results of get_intersections(own_surf, other_surf).
+        self.other_points = other
+        # Intersection points on main curves of the other surface
+
 
 class IsecSurfSurf:
     def __init__(self, surf1, surf2, nt=2, max_it=10, rel_tol = 1e-16, abs_tol = 1e-14):
@@ -428,7 +440,13 @@ class IsecSurfSurf:
         i_surf = 0
 
 
-
+        """
+        for surf_id, surf_points in enumerate(point_list):
+            for point in surf_points:
+                assert point[0].surface_point[0].surf == self.surf[surf_id]
+                assert point[0].own_point.surf == self.surf[surf_id]
+                ... 
+        """
         while self._free_point(point_list[i_surf]) != -1:
 
             self.line.append([])
@@ -463,6 +481,9 @@ class IsecSurfSurf:
                         surfpoint2 = point2.surface_point[1]
                         if self.check_duplicities(surfpoint1, surfpoint2) > 0.00001:
                             p2pos.append(point2_pos)
+
+                    # !!! Do surface_point indexovat pouze 0 nebo 1 jako own nebo other
+                    # asi vhodne do IsecPoint zavest dva samostatne atrbuty own_point a other_point
                         else:
                             point2.duplicite_with = point1
                             point2.connected = 1
