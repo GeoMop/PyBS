@@ -2,7 +2,7 @@
 from . import bspline as bs, isec_curve_surf as ICS, isec_point as IP, surface_point as SP
 import numpy.linalg as la
 import numpy as np
-
+import copy
 
 class Patch:
     # Auxiliary object to collect Intersection points on one patch.
@@ -27,7 +27,7 @@ class IsecSurfSurf:
         self.rel_tol = rel_tol
 
         # Intersection curves reconstruction
-        self.n_curves = -1
+        self.curve_max_id = -1
         self.line = []
         self.line_info = []
         self.line_surf = []
@@ -211,11 +211,10 @@ class IsecSurfSurf:
             for points in point_lists:
                 print(points.xyz)
 
-        print("n_lines=",self.n_curves)
+        print("n_lines=", self.curve_max_id+1)
 
         for lines in self.line:
-            print(len(lines))
-            print("line")
+            print("line size =", len(lines))
             for points in lines:
                 print(points.xyz)
 
@@ -271,7 +270,7 @@ class IsecSurfSurf:
                     i_surf = i
                     return point, i_surf
 
-    def _unconnected_patch_points_new(self, isec_point, i_surf, patch_point_list):
+    def _find_neighbours(self, isec_point, i_surf, patch_point_list):
         """
         :param point_list: list of all points
         :param patch_point_list:
@@ -279,94 +278,52 @@ class IsecSurfSurf:
         :param patch_id: as numpy array of integers
         :return:
         """
-        patch_id = isec_point.own_point.patch_id()
-        patch2_id = isec_point.other_point.patch_id()
+        patch_ids = isec_point.own_point.patch_id()
+        patch2_ids = isec_point.other_point.patch_id()
 
         own = 0
-        other = 1
+        #other = 1
+        #isec_point z volani zaradit do duplicit
 
         own_unconnected = []
         other_unconnected = []
 
         # find all unconnected own points
-        for pid in patch_id:
+        for pid in patch_ids:
             own_isec_points = patch_point_list[i_surf][own][pid]
             for own_isec_point in own_isec_points:
                 if own_isec_point.connected == 0:
-                    own_unconnected.append(own_isec_point)
+                    if self.check_duplicities(own_isec_point.own_point, isec_point.own_point) < 0.00001:
+                        own_unconnected.append(own_isec_point)
+                    else:
+                        own_isec_point.connected = 1
+                        # ASSERT
+
+
+        own_list = own_unconnected.copy()
+        own_list.append(isec_point)
 
         # find all unconnected other points and remove all duplicities
         # (it may occur, e.g., for two surfaces which having the same patch interfaces)
-        for pid2 in patch2_id:
-            other_isec_points = patch_point_list[1-i_surf][own][pid2]
+        for pid2 in patch2_ids:
+            other_isec_points = patch_point_list[1-i_surf][own][pid2] # -> other
             for other_isec_point in other_isec_points:
                 if len(other_isec_point.other_point.patch_id() & isec_point.own_point.patch_id()) > 0:
-                    if other_isec_point.connected == 0:
-                        if len(own_unconnected) > 0:
-                            for own_isec_point in own_unconnected:
-                                own_point = own_isec_point.own_point
-                                other_point = other_isec_point.other_point
-                                if self.check_duplicities(own_point, other_point) < 0.00001:
-                                    other_isec_point.duplicite_with = own_isec_point
-                                    other_isec_point.connected = 1
-                                    own_isec_point.duplicite_with = other_isec_point
-                    else:
+                    if other_isec_point.connected == 1:
                         continue
+                    other_point = other_isec_point.other_point
+                    for own_isec_point in own_list:
+                        own_point = own_isec_point.own_point
+                        if self.check_duplicities(own_point, other_point) < 0.00001:
+                            other_isec_point.duplicite_with = own_isec_point
+                            other_isec_point.connected = 1
+                            own_isec_point.duplicite_with = other_isec_point
+
 
                     if other_isec_point.connected == 0:
                         other_unconnected.append(other_isec_point)
 
         return own_unconnected, other_unconnected
-
-    @staticmethod
-    def _unconnected_patch_points(point_list, patch_point_list, i_surf, patch_id):
-        """
-        :param point_list: list of all points
-        :param patch_point_list:
-        :param i_surf: index of the surface "0" or "1"
-        :param patch_id: as numpy array of integers
-        :return:
-        """
-
-        #next_point = []
-        next_point = set()
-        for p_id in patch_id:
-            next_point.union(patch_point_list[i_surf][p_id])
-
-        connected = set()
-        for pos in next_point:
-             if point_list[i_surf][pos].connected == 1:
-                connected.add(pos)
-
-        next_point -= connected
-
-        return list(next_point)
-
-        #     for point_pos in patch_point_list[i_surf][p_id]:
-        #
-        #
-        #         if point_list[i_surf][point_pos].connected == 0:
-        #             found = 0
-        #             for pids in next_point:
-        #                 if pids == point_pos:
-        #                     found == 1
-        #             if found == 0:
-        #                 next_point.append(point_pos)
-        #
-        # return next_point
-
-
-    #@staticmethod
-    def _free_point(self, point_list):
-
-        free_point = []
-        i = -1
-        for point in point_list:
-            i += 1
-            if point.connected == 0:
-                free_point.append(point)
-
-        return free_point
 
     def check_duplicities(self, surfpoint1, surfpoint2):
         """
@@ -377,14 +334,16 @@ class IsecSurfSurf:
         pid1 = surfpoint1.patch_id()
         pid2 = surfpoint2.patch_id()
 
-        pid = pid1 & pid2 # rozdil!!!!
+        pid = pid1 - pid2 # TODO BETTER
 
-        if len(pid) > 0:
+        dist = 1
+        if len(pid) == 0:
             dist = la.norm(surfpoint1.uv - surfpoint2.uv)
             print(dist)
-            return dist
 
-        return -1
+        return dist
+
+        #return -1
 
     def add_point(self, point, i_surf, info):
         """
@@ -395,9 +354,9 @@ class IsecSurfSurf:
         """
 
         point.connected = 1
-        self.line[self.n_curves].append(point)
-        self.line_info[self.n_curves].append(info)
-        self.line_surf[self.n_curves].append(i_surf)
+        self.line[self.curve_max_id].append(point)
+        self.line_info[self.curve_max_id].append(info)
+        self.line_surf[self.curve_max_id].append(i_surf)
 
 
     def _make_point_orderings(self, point_list, patch_points):
@@ -407,7 +366,6 @@ class IsecSurfSurf:
         :param patch_points:
         :return:
         """
-        i_surf = 0
 
         """
         for surf_id, surf_points in enumerate(point_list):
@@ -416,51 +374,48 @@ class IsecSurfSurf:
                 assert point[0].own_point.surf == self.surf[surf_id]
                 ... 
         """
-        while self._free_point(point_list[i_surf]) != -1:
 
-            self.line.append([])
-            self.line_info.append([])
-            self.line_surf.append([])
+        for i_surf in range(0, 2):
+            for point in point_list[i_surf]:
+                if point.connected == 1:
+                    continue
 
-            own = 0
-            other = 1
+                # point will be uses as start point
 
-             # obtain start point
-            points = self._free_point(point_list[i_surf])
-            if len(points) >0:
+                # initialization of the curve
+                self.line.append([])
+                self.line_info.append([])
+                self.line_surf.append([])
                 end_found = np.zeros([2])
-                self.n_curves += 1
-            else:
-                return
+                self.curve_max_id += 1
 
-            point = points[0]
-            self.add_point(point, i_surf, 0)  # "n_addepts  = 0" should be rewritten after reverse
+                self.add_point(point, i_surf, 0)  # "n_addepts  = 0" should be rewritten after reverse
 
-            while end_found[1] == 0:
+                while end_found[1] == 0:
 
-                # search all patches where the last point live in
-                own_isec_point = self.line[self.n_curves][-1]
-                own_point = own_isec_point.own_point
-                p1id = own_point.patch_id()
-                #p1pos = self._unconnected_patch_points(point_list, patch_points, i_surf, p1id)
-                own_isec_points, other_isec_points = self._unconnected_patch_points_new(own_isec_point, i_surf, patch_points)
+                    # search all patches where the last point live in
+                    own_isec_point = self.line[self.curve_max_id][-1]
+                    own_isec_points, other_isec_points = self._find_neighbours(own_isec_point, i_surf, patch_points)
 
-                if np.logical_and(len(other_isec_points) == 0, len(own_isec_points) == 0):
-                    if end_found[0] == 0:
-                        end_found[0] = 1
-                        self.line[self.n_curves].reverse()
-                        self.line_info[self.n_curves].reverse()
-                        self.line_surf[self.n_curves].reverse()
-                    elif end_found[0] == 1:
-                        end_found[1] = 1
+                    print(len(other_isec_points), len(own_isec_points))
 
+                    if np.logical_and(len(other_isec_points) == 0, len(own_isec_points) == 0):
+                        if end_found[0] == 0:
+                            end_found[0] = 1
+                            self.line[self.curve_max_id].reverse()
+                            self.line_info[self.curve_max_id].reverse()
+                            self.line_surf[self.curve_max_id].reverse()
+                            continue
+                        else:
+                            end_found[1] = 1
+                            break
 
-                if len(other_isec_points) > 0:
-                    point = other_isec_points[0]
-                    i_surf = 1 - i_surf
-                    n_points = len(other_isec_points)
-                elif len(own_isec_points) > 0:
-                    point = own_isec_points[0]
-                    n_points = len(own_isec_points)
+                    if len(other_isec_points) > 0:
+                        point = other_isec_points[0]
+                        i_surf = 1 - i_surf
+                        n_points = len(other_isec_points)
+                    elif len(own_isec_points) > 0:
+                        point = own_isec_points[0]
+                        n_points = len(own_isec_points)
 
-                self.add_point(point, i_surf, n_points)
+                    self.add_point(point, i_surf, n_points)
