@@ -1,0 +1,7 @@
+{
+  "test_heal_complex.py::test_on_mesh_samples[0.003-random_fractures_02.msh]": true,
+  "test_heal_complex.py::test_on_mesh_samples[0.003-random_fractures_neg_jac_04.msh]": true,
+  "test_heal_complex.py::test_on_mesh_samples[0.003-random_fractures_neg_jac_06.msh]": true,
+  "test_heal_complex.py::test_on_mesh_samples[0.01-random_fractures_neg_jac_05.msh]": true,
+  "test_heal_complex.py::test_on_mesh_samples[0.01-random_fractures_neg_jac_06.msh]": true
+}

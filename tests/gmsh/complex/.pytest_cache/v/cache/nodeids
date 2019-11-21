@@ -1,0 +1,11 @@
+[
+  "test_heal_complex.py::test_on_mesh_samples[0.003-random_fractures_neg_jac_04.msh]",
+  "test_heal_complex.py::test_on_mesh_samples[0.003-random_fractures_neg_jac_05.msh]",
+  "test_heal_complex.py::test_on_mesh_samples[0.003-random_fractures_neg_jac_06.msh]",
+  "test_heal_complex.py::test_on_mesh_samples[0.01-random_fractures_neg_jac_04.msh]",
+  "test_heal_complex.py::test_on_mesh_samples[0.01-random_fractures_neg_jac_05.msh]",
+  "test_heal_complex.py::test_on_mesh_samples[0.01-random_fractures_neg_jac_06.msh]",
+  "test_heal_complex.py::test_on_mesh_samples[0.03-random_fractures_neg_jac_04.msh]",
+  "test_heal_complex.py::test_on_mesh_samples[0.03-random_fractures_neg_jac_05.msh]",
+  "test_heal_complex.py::test_on_mesh_samples[0.03-random_fractures_neg_jac_06.msh]"
+]

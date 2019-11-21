@@ -108,10 +108,10 @@ with open("README.md", "r") as fh:
 
 
 setuptools.setup(
-    name='PyBS',
+    name='bgem',
     version=__version__,
     license='GPL 3.0',
-    description='B-spline modelling library.',
+    description='B-spline modelling CAD and meshing tools.',
     long_description=long_description,
     long_description_content_type="text/markdown",
     author='Jan Brezina',
@@ -136,9 +136,9 @@ setuptools.setup(
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
     
-    packages = setuptools.find_packages('src'),
+    packages=['bgem', 'bgem.polygons', 'bgem.bspline'], #setuptools.find_packages(where='src'),
     package_dir={'': 'src'},
-    py_modules=[os.path.splitext(os.path.basename(path))[0] for path in glob.glob('src/*.py')],
+    #py_modules=[os.path.splitext(os.path.basename(path))[0] for path in glob.glob('src/*.py')],
     # package_data={
     #     # If any package contains *.txt or *.rst files, include them:
     #     #'': ['*.txt', '*.rst'],
@@ -147,7 +147,7 @@ setuptools.setup(
     # },
 
     # include automatically all files in the template MANIFEST.in
-    # include_package_data=True,
+    include_package_data=True,
     zip_safe=False,
     install_requires=['numpy', 'scipy', 'bih'],
     python_requires='>=3',
