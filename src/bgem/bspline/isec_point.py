@@ -21,10 +21,6 @@ class IsecPoint:
         :param xyz: array of global coordinates as numpy array 3x1
         """
 
-        #self.surface_point = []
-        #self.surface_point.append(surface_point_a)
-        #self.surface_point.append(surface_point_b)
-        #self.surface_point = tuple(self.surface_point)
         self.duplicite_with = None
         self.own_point = own_point
         self.other_point = other_point
