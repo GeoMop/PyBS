@@ -26,18 +26,19 @@ class IsecSurfSurf:
         self.abs_tol = abs_tol
         self.rel_tol = rel_tol
 
-        # Intersection curves reconstruction
+        # Intersection curves reconstruction (sequence of the points)
         self.curve_max_id = -1
-        self.line = []
-        self.line_own_info = []
-        self.line_other_info = []
-        self.line_surf = []
+        self.curve = []
+        self.curve_own_neighbours = []
+        self.curve_other_neighbours = []
+        self.curve_surf = []
+        self.curve_loop = []
 
 
     def get_intersection(self):
         """
         Main method to get intersection points
-        :return:
+        :return: point_list1, point_list2 as the lists of the intersection points
         """
         point_list1 = self.get_intersections(self.surf1, self.surf2)  # patches of surf 2 with respect threads of the surface 1
         point_list2 = self.get_intersections(self.surf2, self.surf1) # patches of surf 1 with respect threads of the surface 2
@@ -52,10 +53,10 @@ class IsecSurfSurf:
     def _main_curves(surf, axis):
         """
         Construction of the main curves, i.e.,
-        Todo: what is "thread", describe.
         :param surf: surface which is used to construction of the main threads
         :param axis: sum_idx == 0 --> u fixed, sum_idx == 1 --> v fixed
-        :return: curves as list of curves, w_val as list of value of the fixed local coordinates , patches as list of neighbour patches
+        :return: curves as list of curves, w_val as list of value of the fixed local coordinates ,
+        patches as list of neighbour patches
         """
 
         poles = surf.poles
@@ -95,7 +96,7 @@ class IsecSurfSurf:
          non-empty intersection of corresponding bonding boxes
         :param own_surf: Surface used to construction of the main threads
         :param other_surf: Intersected surface
-        :return: point_list as list of points of intersection
+        :return: point_list as list of isec_points
         """
 
         tree2 = other_surf.tree
@@ -175,9 +176,9 @@ class IsecSurfSurf:
 
     def _connect_points(self, point_list1, point_list2):
         """
-
-        :param point_list1:
-        :param point_list2:
+        builds new data structures in order to connection algorithm may work efficient & call connection algorithm
+        :param point_list1: as the list of the isec_points
+        :param point_list2: as the list of the isec_points
         :return:
         """
 
@@ -335,10 +336,10 @@ class IsecSurfSurf:
         :return:
         """
 
-        self.line[self.curve_max_id].reverse()
-        self.line_own_info[self.curve_max_id].reverse()
-        self.line_other_info[self.curve_max_id].reverse()
-        self.line_surf[self.curve_max_id].reverse()
+        self.curve[self.curve_max_id].reverse()
+        self.curve_own_neighbours[self.curve_max_id].reverse()
+        self.curve_other_neighbours[self.curve_max_id].reverse()
+        self.curve_surf[self.curve_max_id].reverse()
 
     def add_point(self, point, i_surf, own_info, other_info):
         """
@@ -350,25 +351,46 @@ class IsecSurfSurf:
         :return:
         """
         point.connected = 1
-        self.line[self.curve_max_id].append(point)
-        self.line_own_info[self.curve_max_id].append(own_info)
-        self.line_other_info[self.curve_max_id].append(other_info)
-        self.line_surf[self.curve_max_id].append(i_surf)
+        self.curve[self.curve_max_id].append(point)
+        self.curve_own_neighbours[self.curve_max_id].append(own_info)
+        self.curve_other_neighbours[self.curve_max_id].append(other_info)
+        self.curve_surf[self.curve_max_id].append(i_surf)
 
-    def init_new_curve(self):
+    def loop_check(self):
         """
-        initialize data structures for the new curve
+        detects closed curves, i.e., the first and the last points (of the curve) can be found on at least one common
+        patch_id (on both surfaces)
+        :return:
         """
-        self.line.append([])
-        self.line_own_info.append([])
-        self.line_other_info.append([])
-        self.line_surf.append([])
-        self.curve_max_id += 1
+
+        first_isec_point = self.curve[self.curve_max_id][0]
+        last_isec_point = self.curve[self.curve_max_id][-1]
+        point1_surf = self.curve_surf[self.curve_max_id][0]
+        point2_surf = self.curve_surf[self.curve_max_id][1]
+
+        if point1_surf == point2_surf:
+            n1 = len(first_isec_point.own_point.patch_id() & last_isec_point.own_point.patch_id())
+            n2 = len(first_isec_point.other_point.patch_id() & last_isec_point.other_point.patch_id())
+        else:
+            n1 = len(first_isec_point.own_point.patch_id() & last_isec_point.other_point.patch_id())
+            n2 = len(first_isec_point.other_point.patch_id() & last_isec_point.own_point.patch_id())
+
+        if np.logical_and(n1 > 0, n2 > 0):
+            loop_detected = 1
+        else:
+            loop_detected = 0
+
+        self.curve_loop.append(loop_detected)
 
     def _make_point_orderings(self, point_list, patch_points):
         """
-        TODO: split into smaller functions.
-        :param point_list: as list of the list of the isec_points (to find unconnected points)
+        main connection algorithm, sorted sequences od the isec_points append into lists
+        -1) starts from the first unconnected point
+        -2) choose one of the possible directions
+        -3) subsequent points are connected
+        -4) when end of the curve is achieved, corresponding lists are reversed,
+        -5) connects the points in the opposite direction
+        :param point_list: as list of the list of the isec_points (used to find unconnected points - start points)
         :param patch_points: as list of the lists of the lists of the isec_points (used for connection algorithm)
         :return:
         """
@@ -393,8 +415,8 @@ class IsecSurfSurf:
                 while end_found[1] == 0:
 
                     # search all patches where the last point live in
-                    own_isec_point = self.line[self.curve_max_id][-1]
-                    i_surf = self.line_surf[self.curve_max_id][-1]
+                    own_isec_point = self.curve[self.curve_max_id][-1]
+                    i_surf = self.curve_surf[self.curve_max_id][-1]
 
                     own_isec_points, other_isec_points = self._find_neighbours(own_isec_point, i_surf, patch_points)
 
@@ -409,6 +431,7 @@ class IsecSurfSurf:
                             continue
                         else:
                             end_found[1] = 1
+                            self.loop_check()
                             break
 
                     if len(other_isec_points) > 0:
@@ -418,3 +441,16 @@ class IsecSurfSurf:
                         point = own_isec_points[0]
 
                     self.add_point(point, i_surf, n_own_points, n_other_points)
+
+
+
+
+    def init_new_curve(self):
+        """
+        initialize data structures for the new curve
+        """
+        self.curve.append([])
+        self.curve_own_neighbours.append([])
+        self.curve_other_neighbours.append([])
+        self.curve_surf.append([])
+        self.curve_max_id += 1
