@@ -6,6 +6,7 @@ import copy
 
 class Patch:
     # Auxiliary object to collect Intersection points on one patch.
+    # TODO: remove
     def __init__(self, own, other):
         own_surf_point, other_surf_point = own[0]
         self.own_surf = own_surf_point.surf
@@ -19,6 +20,10 @@ class Patch:
 
 class IsecSurfSurf:
     def __init__(self, surf1, surf2, nt=2, max_it=10, rel_tol = 1e-16, abs_tol = 1e-14):
+        """
+        TODO: documentation of all class attributes, this will also document parameters
+        What is desired meaning of rel_tol? Relative to what?
+        """
         self.surf1 = surf1
         self.surf2 = surf2
         self.nt = nt
@@ -39,6 +44,9 @@ class IsecSurfSurf:
         """
         Main method to get intersection points
         :return: point_list1, point_list2 as the lists of the intersection points
+        TODO: describe diference between list1 and list2, possibly use more specific name: isec_12_points_12, isec_21_points
+        - we should rather make this as property with automatic calculation, that way we can dynamicaly compute only results (curves)
+          that are requested
         """
         point_list1 = self.get_intersections(self.surf1, self.surf2)  # patches of surf 2 with respect threads of the surface 1
         point_list2 = self.get_intersections(self.surf2, self.surf1) # patches of surf 1 with respect threads of the surface 2
@@ -57,6 +65,8 @@ class IsecSurfSurf:
         :param axis: sum_idx == 0 --> u fixed, sum_idx == 1 --> v fixed
         :return: curves as list of curves, w_val as list of value of the fixed local coordinates ,
         patches as list of neighbour patches
+        TODO: better description of the returned values, seems that w_val and patches further specify the main curve, but
+        their naming is not meaningful
         """
 
         poles = surf.poles
@@ -94,9 +104,10 @@ class IsecSurfSurf:
         """
         Tries to compute intersection of the main curves from surface1 and patches of the surface2 which have a
          non-empty intersection of corresponding bonding boxes
-        :param own_surf: Surface used to construction of the main threads
+        :param own_surf: Surface used to construction of the main curves
         :param other_surf: Intersected surface
         :return: point_list as list of isec_points
+        TODO: possibly rename to "_raw_intersection_points"
         """
 
         tree2 = other_surf.tree
@@ -107,10 +118,13 @@ class IsecSurfSurf:
         for axis in [IP.Axis.u, IP.Axis.v]:
             curves, w_val, patch = self._main_curves(own_surf, axis)
             curve_id = -1
+            # TODO: use eneumerate to get curve_id, or rather return from _main_curves list of triples (curve, w, interval)
+            # and iterate over these; isnt't curve_id == interval ?
             for curve in curves:
                 curve_id += 1
                 #interval_intersections = 0
                 for it in range(curve.basis.n_intervals):
+                    # TODO: Document the method, return bool. Remove print.
                     if self._already_found(crossing, it, curve_id, axis) == 1: #?
                         print('continue')
                         continue
@@ -118,6 +132,7 @@ class IsecSurfSurf:
                     intersectioned_patches2 = tree2.find_box(curve.boxes[it])
                     for ipatch2 in intersectioned_patches2:
                         iu2, iv2 = other_surf.patch_id2pos(ipatch2)
+                        # TODO: rel_tol is not used, meaning should be clarified ...
                         uvt,  conv, xyz = curv_surf_isec.get_intersection(iu2, iv2, it, self.max_it,
                                                                             self.rel_tol, self.abs_tol)
                         if conv == 1:
@@ -146,6 +161,8 @@ class IsecSurfSurf:
                             #    a = 1
                                 #check
 
+                            # TODO: make a method to mark crossings, or comment that it is chacked by _already_found
+                            # would be best to have separate small class for that
                             direction = own_point.interface_flag[1-axis]
                             if direction != 0:
                                 ind = [curve_id, curve_id]
@@ -158,6 +175,7 @@ class IsecSurfSurf:
 
     @staticmethod
     def _already_found(crossing, interval_id, curve_id, axis):
+        # TODO: name _crossing_found ??, describe parameters and function
 
         found = 0
         ind1 = [curve_id, curve_id]
@@ -166,8 +184,9 @@ class IsecSurfSurf:
         ind2[1-axis] = interval_id + 1
 
         if np.logical_or(crossing[tuple(ind1)] == 1, crossing[tuple(ind2)] == 1):
+            # TODO: just return True
             found = 1
-
+        # TODO: just return False
         return found
 
     ##########################
@@ -176,22 +195,19 @@ class IsecSurfSurf:
 
     def _connect_points(self, point_list1, point_list2):
         """
-        builds new data structures in order to connection algorithm may work efficient & call connection algorithm
+        Builds new data structures in order to connection algorithm may work efficient & call connection algorithm
         :param point_list1: as the list of the isec_points
         :param point_list2: as the list of the isec_points
         :return:
+
+        TODO: document which attributes of the class are computed/updated
         """
 
         patch_point1 = self.make_patch_point_list(point_list1, point_list2)
         patch_point2 = self.make_patch_point_list(point_list2, point_list1)
 
-        patch_point = []
-        point_list = []
-
-        point_list.append(point_list1)
-        point_list.append(point_list2)
-        patch_point.append(patch_point1)
-        patch_point.append(patch_point2)
+        patch_point = [patch_point1, patch_point2]
+        point_list = [point_list1, point_list2]
 
         self._make_point_orderings(point_list, patch_point)
 
@@ -224,15 +240,16 @@ class IsecSurfSurf:
         :param other_isec_points: as list of isec_points appropriate to the general position on the surface
         corresponding to the surface_point equal to other_point
         :return: list of of the lists of the lists of the isec_points, such that
-        patch_points[own/other][patch_ID][list of the intersection points]
+        patch_points[own/other][patch_ID] = list of the intersection points
         """
 
         surf = own_isec_points[0].own_point.surf
 
+        # TODO: better name n_patches
         list_len = surf.u_basis.n_intervals * surf.v_basis.n_intervals
+        # TODO: use comprehension: [ [] for i in range(n_patches)]
         patch_points_own = []
         patch_points_other = []
-        patch_points = []
 
         # initialize of the lists
         for i in range(list_len):
@@ -241,6 +258,7 @@ class IsecSurfSurf:
 
         # add links to the own_points
         for point in own_isec_points:
+            # TODO: no reason for temporary variable
             patch_id = point.own_point.patch_id()
             for patch in patch_id:
                 patch_points_own[patch].append(point)
@@ -252,9 +270,11 @@ class IsecSurfSurf:
                 patch_points_other[patch].append(point)
 
         # joint both lists
+        patch_points = []
         patch_points.append(patch_points_own)
         patch_points.append(patch_points_other)
 
+        # TODO: Just make the list [own, other]
         return patch_points
 
     def _find_neighbours(self, isec_point, i_surf, patch_point_list):
@@ -333,6 +353,8 @@ class IsecSurfSurf:
         """
         performs reverse on all the lists corresponding to the last curve in order to move boundary point (and all
         corresponding data) of the curve to the first position of the lists
+        TODO: Method of IntersectionCurve
+        TODO: Do we need curve_own_neighbours, curve_other_neighbours, curve_surf ?
         :return:
         """
 
@@ -360,6 +382,7 @@ class IsecSurfSurf:
         """
         detects closed curves, i.e., the first and the last points (of the curve) can be found on at least one common
         patch_id (on both surfaces)
+        TODO: should be method of the IntersectionCurve
         :return:
         """
 
@@ -399,19 +422,27 @@ class IsecSurfSurf:
                 assert point[0].surface_point[0].surf == self.surf[surf_id]
                 assert point[0].own_point.surf == self.surf[surf_id] 
         """
+
         for n_surf in range(0, 2):
             for point in point_list[n_surf]:
+                # TODO: use bool for such flag
                 if point.connected == 1:
                     continue
 
                 # unconnected point will be used as start point
 
                 self.init_new_curve()
+                # TODO: Make a class (e.g. IntersectionCurve) for the curve information, can be filled as temporary current_curve instead of
+                # self.curve[self.curve_max_id] etc.
+                # add_point should be method of the IntersectionCurve class
                 end_found = np.zeros([2])
 
+                # TODO: rather rename to i_current_surf
                 i_surf = n_surf
                 self.add_point(point, i_surf, -1, -1)  # "n_addepts  = 0" should be rewritten after reverse
 
+                # Make a method to iterate through single branch of the curve and avoid
+                # complicated end_found logic.
                 while end_found[1] == 0:
 
                     # search all patches where the last point live in
@@ -424,6 +455,7 @@ class IsecSurfSurf:
                     n_other_points = len(other_isec_points)
 
                     print(n_own_points, n_other_points)
+                    # TODO: no need for np.logical_and, use just the Python 'and'
                     if np.logical_and(n_own_points == 0, n_other_points == 0):
                         if end_found[0] == 0:
                             end_found[0] = 1
@@ -433,7 +465,7 @@ class IsecSurfSurf:
                             end_found[1] = 1
                             self.loop_check()
                             break
-
+                    # TODO: use n_own_points, n_other_points
                     if len(other_isec_points) > 0:
                         point = other_isec_points[0]
                         i_surf = 1 - i_surf
@@ -448,6 +480,8 @@ class IsecSurfSurf:
     def init_new_curve(self):
         """
         initialize data structures for the new curve
+        TODO: Instead of having several lists continaing related information, try to introduce simple class
+        for single curve information..
         """
         self.curve.append([])
         self.curve_own_neighbours.append([])
