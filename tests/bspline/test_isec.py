@@ -197,7 +197,20 @@ class SurfApprox:
 
 
 class TestIsecx:
+    """
+    TODO:
+    - document support test classes
+    - add tests for more variants of control points, add functions etc. (e.g. use pytest parameters)
 
+     @pytest.mark.parametrize( "my_param_x", [1,2,3])
+     def test_fn(my_param_x) :
+            pass
+     - one parameter for function
+     - one parameter for n_control_points quartet
+     n_samples - can be probably fixed
+     x_length, y_length - probably can be fixed
+    - try to document which cases are covered by which parameters
+    """
     def test(self):
         plane_coefficients1 = np.array([-1, 1, -1, 7])
         plane_coefficients2 = np.array([2, -1, -1, 3])
