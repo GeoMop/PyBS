@@ -1,158 +1,13 @@
 from bgem.bspline import bspline as bs, isec_surf_surf as iss, bspline_plot as bp, bspline_approx as bsa
 import numpy as np
 import math
-
-
-class xTestSurface:
-
-    def plot_extrude(self):
-        #fig1 = plt.figure()
-
-        #ax1 = fig1.gca(projection='3d')
-
-
-
-        def function(x):
-            return math.sin(x[0]*4) * math.cos(x[1] * 4)
-
-        def function2(x):
-            return math.cos(x[0]*4) * math.sin(x[1] * 4)
-
-        def function3(x):
-            return (-x[0] + x[1] + 4 + 3 + math.cos(3 * x[0]))
-
-        def function4(x):
-            return (2 * x[0] - x[1] + 3 + math.cos(3 * x[0]))
-
-        u1_int = 4
-        v1_int = 4
-        u2_int = 4
-        v2_int = 4
-
-        u_basis = bs.SplineBasis.make_equidistant(2, u1_int) #10
-        v_basis = bs.SplineBasis.make_equidistant(2, v1_int) #15
-        u2_basis = bs.SplineBasis.make_equidistant(2, u2_int) #10
-        v2_basis = bs.SplineBasis.make_equidistant(2, v2_int) #15
-        poles = bs.make_function_grid(function, u1_int + 2, v1_int + 2) #12, 17
-        surface_extrude = bs.Surface((u_basis, v_basis), poles)
-
-        myplot = bp.Plotting((bp.PlottingPlotly()))
-        #myplot.plot_surface_3d(surface_extrude, poles = False)
-        poles2 = bs.make_function_grid(function2,  u2_int + 2, v2_int + 2) #12, 17
-        surface_extrude2 = bs.Surface((u2_basis, v2_basis), poles2)
-        #myplot.plot_surface_3d(surface_extrude2, poles=False)
-
-        m = 100
-        fc = np.zeros([m * m, 3])
-        fc2 = np.empty([m * m, 3])
-        a = 5
-        b = 7
-        #print(fc)
-
-        for i in range(m):
-            for j in range(m):
-                #print([i,j])
-                x = i / m * a
-                y = j / m * b
-                z = function3([x, y])
-                z2 = function4([x, y])
-                fc[i + j * m, :] = [x, y, z]
-                fc2[i + j * m, :] = [x, y, z2]
-
-        #print(fc)
-
-        #gs = bs.GridSurface(fc.reshape(-1, 3))
-        #gs.transform(xy_mat, z_mat)
-        #approx = bsa.SurfaceApprox.approx_from_grid_surface(gs)
-
-
-
-
-        approx = bsa.SurfaceApprox(fc)
-        approx2 = bsa.SurfaceApprox(fc2)
-        surfz = approx.compute_approximation(nuv=np.array([11, 26]))
-        surfz2 = approx2.compute_approximation(nuv=np.array([20, 16]))
-        #surfz = approx.compute_approximation(nuv=np.array([3, 5]))
-        #surfz2 = approx2.compute_approximation(nuv=np.array([2, 4]))
-        surfzf = surfz.make_full_surface()
-        surfzf2 = surfz2.make_full_surface()
-
-
-        myplot.plot_surface_3d(surfzf, poles=False)
-        myplot.plot_surface_3d(surfzf2, poles=False)
-
-        #return surface_extrude, surface_extrude2, myplot
-        return surfzf, surfzf2, myplot
-
-
-
-    #def plot_function(self):
-    #    fig = plt.figure()
-    #    ax = fig.gca(projection='3d')
-
-        # function surface
-    #    def function(x):
-    #        return math.sin(x[0]) * math.cos(x[1])
-
-        #poles = bs.make_function_grid(function, 4, 5)
-        #u_basis = bs.SplineBasis.make_equidistant(2, 2)
-        #v_basis = bs.SplineBasis.make_equidistant(2, 3)
-        #surface_func = bs.Surface( (u_basis, v_basis), poles)
-        #bs_plot.plot_surface_3d(surface_func, ax)
-        #bs_plot.plot_surface_poles_3d(surface_func, ax)
-
-        #plt.show()
-
-
-    #def boudingbox(self):
-    #    SurfSurf = IsecSurfSurf.bounding_boxes()
-    #@pytest.mark.skip
-    def test_isec(self):
-
-
-        surf1, surf2, myplot = self.plot_extrude()
-        isec = iss.IsecSurfSurf(surf1, surf2)
-        #box1, tree1 = isec.bounding_boxes(surf1)
-        #box2, tree2 = isec.bounding_boxes(surf2)
-        #isec.get_intersection(surf1,surf2,tree1,tree2,box1,box2,isec.nt,isec.nit) # surf1,surf2,tree1,tree2
-        point_list1, point_list2 = isec.get_intersection()
-
-        m = point_list1.__len__() + point_list2.__len__()
-
-        X = np.zeros([m])
-        Y = np.zeros([m])
-        Z = np.zeros([m])
-
-        i = -1
-
-        for point in point_list1:
-            i += 1
-            X[i] = point.xyz[0]
-            Y[i] = point.xyz[1]
-            Z[i] = point.xyz[2]
-
-        for point in point_list2:
-            i += 1
-            X[i] = point.xyz[0]
-            Y[i] = point.xyz[1]
-            Z[i] = point.xyz[2]
-
-
-
-        myplot.scatter_3d(X, Y, Z)
-
-
-        myplot.show() # view
-
-        #print(tree1.find_box(boxes2[0]))
-        #print(surf1.poles[:,:,1])
-        #print(surf1.u_basis.n_intervals)
-        #print(surf1.u_basis.knots)
+import pytest
+import statprof
 
 
 class SurfApprox:
 
-    def __init__(self, plane_coefficients, x_length, y_length, x_n_samples, y_n_samples, x_n_control_points, y_n_control_points, additive_function):
+    def __init__(self, plane_coefficients, length, samples, control_points, additive_function):
         """
          :param plane_normal_vector: plane vector as numpy array 4x1
          :param x_size: x range as double
@@ -164,12 +19,12 @@ class SurfApprox:
          :return:
          """
         self.plane_coefficients = plane_coefficients
-        self.x_length = x_length
-        self.y_length = y_length
-        self.x_n_samples = x_n_samples
-        self.y_n_samples = y_n_samples
-        self.x_n_control_points = x_n_control_points
-        self.y_n_control_points = y_n_control_points
+        self.x_length = length[0]
+        self.y_length = length[1]
+        self.x_n_samples = samples[0]
+        self.y_n_samples = samples[1]
+        self.x_n_control_points = control_points[0]
+        self.y_n_control_points = control_points[1]
         self.err = None
         self.surfz = None
         self.additive_function = additive_function
@@ -196,8 +51,12 @@ class SurfApprox:
         return err, surfzf
 
 
-class TestIsecx:
+#class TestIsecs():
+#    run = TestIsec.TI()
+
+class TestIsec:
     """
+    Intersection test for two planes shifted by a nonlinear function
     TODO:
     - document support test classes
     - add tests for more variants of control points, add functions etc. (e.g. use pytest parameters)
@@ -211,43 +70,54 @@ class TestIsecx:
      x_length, y_length - probably can be fixed
     - try to document which cases are covered by which parameters
     """
-    def test(self):
-        plane_coefficients1 = np.array([-1, 1, -1, 7])
+
+coefficients = [
+        #(np.array([-1, 1, -1, 7])),
+        (np.array([-1, 2, -1, 7])),
+    ]
+
+control_points = [
+        #([5, 15]),
+        ([11, 10]) #
+    ]
+
+length = [
+        #([5, 7]),
+        ([2, 3]), #
+        #([6, 6])
+    ]
+
+
+@pytest.mark.parametrize("plane_coefficients1", coefficients)
+@pytest.mark.parametrize("control_points_1", control_points)
+@pytest.mark.parametrize("length1", length)
+#@pytest.mark.parametrize("plane_coefficients2", enumerate(plane_coefficients2))
+def test_surface_intersection(plane_coefficients1, control_points_1, length1): #plane_coefficients1
+
+        print(plane_coefficients1, control_points_1, length1)
+
+
+        #plane_coefficients1 = np.array([-1, 1, -1, 7])
         plane_coefficients2 = np.array([2, -1, -1, 3])
 
         def cosx(x):
             return math.cos(3 * x)
 
-        x_length = 5
-        y_length = 7
-        #x_n_samples = 100
-        #y_n_samples = 100
-        #x1_n_control_points = 11
-        #y1_n_control_points = 26
-        #x2_n_control_points = 20
-        #y2_n_control_points = 16
+        length2 = [5, 7]
+        control_points_2 = [10, 11]
+        samples = [20, 20]
 
+        statprof.start()
+        try:
+            sapp1 = SurfApprox(plane_coefficients1, length1, samples, control_points_1, cosx)
+        finally:
+            statprof.stop()
+            statprof.display()
 
-        x_n_samples = 20
-        y_n_samples = 20
-
-
-        #x1_n_control_points = 11
-        #y1_n_control_points = 10
-        #x2_n_control_points = 13
-        #y2_n_control_points = 11
-
-        x1_n_control_points = 11
-        y1_n_control_points = 10
-        x2_n_control_points = 10
-        y2_n_control_points = 11
-
-
-        sapp1 = SurfApprox(plane_coefficients1, x_length, y_length, x_n_samples, y_n_samples, x1_n_control_points, y1_n_control_points, cosx)
-        sapp2 = SurfApprox(plane_coefficients2, x_length, y_length, x_n_samples, y_n_samples, x2_n_control_points, y2_n_control_points, cosx)
+        #sapp1 = SurfApprox(plane_coefficients1, length1, samples, control_points_1, cosx)
+        sapp2 = SurfApprox(plane_coefficients2, length2, samples, control_points_2, cosx)
         ist = IntersectTest(sapp1, sapp2)
         ist.test_isec()
-
 
 class IntersectTest:
 
@@ -276,7 +146,6 @@ class IntersectTest:
         b = plane_coefficients1[1] - plane_coefficients2[1]
         d = plane_coefficients1[3] - plane_coefficients2[3]
 
-
         def xp(y):
             return -(b * y + d) / a
 
@@ -303,9 +172,7 @@ class IntersectTest:
         tol = self.surfapprox.err + self.surfapprox2.err
         points = point_list1 + point_list2
 
-        #print(tol)
         for point in points:
-            #print(np.linalg.norm(point.xyz - srf(point.xyz)))
             assert(np.linalg.norm(point.xyz - srf(point.xyz)) < tol), "intersection point tolerance has been exceeded."
 
 

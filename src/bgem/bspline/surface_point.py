@@ -74,14 +74,23 @@ class SurfacePoint:
         ti[0, 0:2] = self.surf.u_basis.knots[self.iuv[0][0] + 2:self.iuv[0][0] + 4]
         ti[1, 0:2] = self.surf.v_basis.knots[self.iuv[0][1] + 2:self.iuv[0][1] + 4]
 
+        # TODO: tolerances better
+        #print('point')
+        #print(ti[0, 0:2], self.uv[0])
+        #print(ti[1, 0:2],self.uv[1])
+
+        tol = 1e-10
+
         for i in range(2):
-            if abs(ti[i, 0] - self.uv[i]) == 0:
+            if abs(ti[i, 0] - self.uv[i]) < tol:
+                #print(abs(ti[i, 0] - self.uv[i]) < 1e-10)
                 self.interface_flag[i] = int(-1)
-            elif abs(ti[i, 1] - self.uv[i]) == 0:
+            if abs(ti[i, 1] - self.uv[i]) < tol:
+                #print(abs(ti[i, 1] - self.uv[i]) < 1e-10)
                 self.interface_flag[i] = int(1)
 
             # max/ min parameter value instead of 0 / 1
-            if np.logical_or(self.uv[i] == 0, self.uv[i] == 1):
+            if np.logical_or(abs(self.uv[i] - 0) < tol, abs(self.uv[i] - 1) < tol):
                 self.boundary_flag[i] = 1
 
     # def patch_id(self):
